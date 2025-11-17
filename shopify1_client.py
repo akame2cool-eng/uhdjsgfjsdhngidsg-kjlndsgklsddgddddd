@@ -54,6 +54,68 @@ class Shopify1CheckoutAutomation:
             logger.error(f"❌ Errore inizializzazione driver: {e}")
             return False
 
+    def close_that_fucking_popup(self):
+        """Chiude il cazzo di popup che blocca tutto"""
+        try:
+            print("🔫 Chiudo il popup del cazzo...")
+            # Prova a chiudere il popup specifico
+            popup_selectors = [
+                "#shopify-pc__banner",  # Il popup che causa problemi
+                ".shopify-pc__banner__dialog",
+                "[aria-label*='close']",
+                ".close-button",
+                ".popup-close"
+            ]
+            
+            for selector in popup_selectors:
+                try:
+                    element = self.driver.find_element(By.CSS_SELECTOR, selector)
+                    if element.is_displayed():
+                        print(f"✅ Trovato popup: {selector}")
+                        # Prova a trovare e cliccare il bottone close
+                        close_selectors = [
+                            f"{selector} [aria-label*='close']",
+                            f"{selector} .close",
+                            f"{selector} button",
+                            f"{selector} [class*='close']"
+                        ]
+                        for close_selector in close_selectors:
+                            try:
+                                close_btn = self.driver.find_element(By.CSS_SELECTOR, close_selector)
+                                if close_btn.is_displayed():
+                                    self.driver.execute_script("arguments[0].click();", close_btn)
+                                    print(f"✅ Chiuso popup con: {close_selector}")
+                                    time.sleep(2)
+                                    return True
+                            except:
+                                continue
+                except:
+                    continue
+            
+            # Se non trova il bottone close, prova a rimuovere il popup con JavaScript
+            try:
+                self.driver.execute_script("""
+                    // Rimuovi il cazzo di popup
+                    var popup = document.querySelector('#shopify-pc__banner');
+                    if (popup) popup.remove();
+                    
+                    var dialog = document.querySelector('.shopify-pc__banner__dialog');
+                    if (dialog) dialog.remove();
+                    
+                    // Rimuovi overlay
+                    var overlays = document.querySelectorAll('.popup-overlay, .modal-overlay');
+                    overlays.forEach(function(el) { el.remove(); });
+                """)
+                print("✅ Popup rimosso con JavaScript")
+                time.sleep(2)
+                return True
+            except:
+                pass
+                
+        except Exception as e:
+            print(f"ℹ️ Nessun popup trovato: {e}")
+        return False
+
     def generate_italian_info(self):
         """Genera informazioni italiane per il checkout"""
         first_names = ['Marco', 'Luca', 'Giuseppe', 'Andrea', 'Roberto', 'Alessandro']
@@ -82,8 +144,14 @@ class Shopify1CheckoutAutomation:
             self.driver.get("https://earthesim.com/products/usa-esim?variant=42902995271773")
             time.sleep(5)
             
+            # CHIUDI IL POPUP PRIMA DI CLICCARE
+            self.close_that_fucking_popup()
+            time.sleep(2)
+            
             add_button = self.wait.until(EC.element_to_be_clickable((By.CSS_SELECTOR, "button[type='submit']")))
-            add_button.click()
+            
+            # Usa JavaScript click per evitare interception
+            self.driver.execute_script("arguments[0].click();", add_button)
             print("✅ Prodotto aggiunto al carrello")
             
             print("⏳ Attendo caricamento...")
